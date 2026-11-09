@@ -43,12 +43,16 @@
     font-weight: 700;
     line-height: 1.4;
     letter-spacing: 0.04em;
+    /* 初始颜色由 JS 控制，CSS 这里只做兜底 */
     color: #fff;
     text-shadow: 0 2px 18px rgba(0,0,0,.28), 0 1px 4px rgba(0,0,0,.25);
     word-break: break-word;
     opacity: 0;
     transform: translateY(18px) scale(.92);
-    transition: opacity .45s ease, transform .45s cubic-bezier(.2,.9,.3,1.2);
+    transition: opacity .45s ease,
+                transform .45s cubic-bezier(.2,.9,.3,1.2),
+                color .55s ease,
+                text-shadow .55s ease;
   }
 
   .text.show {
@@ -67,6 +71,7 @@
     letter-spacing: .06em;
     animation: breathe 2.4s ease-in-out infinite;
     pointer-events: none;
+    transition: color .55s ease, text-shadow .55s ease;
   }
 
   .counter {
@@ -81,22 +86,21 @@
     border-radius: 999px;
     backdrop-filter: blur(4px);
     pointer-events: none;
+    transition: color .55s ease;
   }
 
+  /* 点击特效：社会主义核心价值观词语 */
   .spark {
     position: fixed;
-    width: 8px;
-    height: 8px;
-    margin: -4px 0 0 -4px;
-    border-radius: 50%;
-    background: rgba(255,255,255,.9);
+    font-size: 16px;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: .06em;
+    white-space: nowrap;
     pointer-events: none;
-    animation: spark .55s ease-out forwards;
-  }
-
-  @keyframes spark {
-    from { opacity: .95; transform: scale(1); }
-    to   { opacity: 0; transform: scale(0); }
+    will-change: transform, opacity;
+    -webkit-text-stroke: 0.6px rgba(255,255,255,.55);
+    text-shadow: 0 1px 3px rgba(0,0,0,.55), 0 0 12px rgba(0,0,0,.35);
   }
 
   @keyframes breathe {
@@ -114,45 +118,48 @@
 
 <script>
   (function () {
+    // 元素获取 + 空值保护
     const textEl = document.getElementById('text');
     const counterEl = document.getElementById('counter');
-    let clicks = 0;
+    const hintEl = document.querySelector('.hint');
 
-    // 随机背景方案：渐变 + 纯色 + 柔和图案，配色都偏好看
+    let clicks = 0;
+    let lastBgIndex = -1;
+    let lastColor = '';
+
     const backgrounds = [
-      'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-      'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-      'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-      'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
-      'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
-      'linear-gradient(135deg, #30cfd0 0%, #330867 100%)',
-      'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)',
-      'linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)',
-      'linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)',
-      'linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%)',
-      'linear-gradient(135deg, #d4fc79 0%, #96e6a1 100%)',
-      'linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%)',
-      'linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%)',
-      'linear-gradient(135deg, #f6d365 0%, #fda085 100%)',
-      'linear-gradient(135deg, #5ee7df 0%, #b490ca 100%)',
-      'linear-gradient(135deg, #c471f5 0%, #fa71cd 100%)',
-      'linear-gradient(135deg, #0ba360 0%, #3cba92 100%)',
-      'linear-gradient(135deg, #2af598 0%, #009efd 100%)',
-      'linear-gradient(135deg, #fc6076 0%, #ff9a44 100%)',
-      'linear-gradient(135deg, #7f00ff 0%, #e100ff 100%)',
-      '#1d1d2b',
-      '#141e30',
-      '#0f2027',
-      '#2b2b2b',
-      'radial-gradient(circle at 30% 30%, #ffd86f, #fc6262)',
-      'radial-gradient(circle at 70% 20%, #89f7fe, #66a6ff)',
-      'repeating-linear-gradient(45deg, #ff6b6b 0 24px, #feca57 24px 48px)',
-      'linear-gradient(135deg, #232526 0%, #414345 100%)',
-      'linear-gradient(135deg, #41295a 0%, #2f0743 100%)',
-      'linear-gradient(135deg, #3e5151 0%, #decba4 100%)'
+      { bg: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', tone: 'light' },
+      { bg: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)', tone: 'dark' },
+      { bg: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)', tone: 'dark' },
+      { bg: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)', tone: 'dark' },
+      { bg: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)', tone: 'dark' },
+      { bg: 'linear-gradient(135deg, #30cfd0 0%, #330867 100%)', tone: 'light' },
+      { bg: 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)', tone: 'dark' },
+      { bg: 'linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)', tone: 'dark' },
+      { bg: 'linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)', tone: 'dark' },
+      { bg: 'linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%)', tone: 'dark' },
+      { bg: 'linear-gradient(135deg, #d4fc79 0%, #96e6a1 100%)', tone: 'dark' },
+      { bg: 'linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%)', tone: 'dark' },
+      { bg: 'linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%)', tone: 'dark' },
+      { bg: 'linear-gradient(135deg, #f6d365 0%, #fda085 100%)', tone: 'dark' },
+      { bg: 'linear-gradient(135deg, #5ee7df 0%, #b490ca 100%)', tone: 'dark' },
+      { bg: 'linear-gradient(135deg, #c471f5 0%, #fa71cd 100%)', tone: 'light' },
+      { bg: 'linear-gradient(135deg, #0ba360 0%, #3cba92 100%)', tone: 'light' },
+      { bg: 'linear-gradient(135deg, #2af598 0%, #009efd 100%)', tone: 'dark' },
+      { bg: 'linear-gradient(135deg, #fc6076 0%, #ff9a44 100%)', tone: 'dark' },
+      { bg: 'linear-gradient(135deg, #7f00ff 0%, #e100ff 100%)', tone: 'light' },
+      { bg: '#1d1d2b', tone: 'light' },
+      { bg: '#141e30', tone: 'light' },
+      { bg: '#0f2027', tone: 'light' },
+      { bg: '#2b2b2b', tone: 'light' },
+      { bg: 'radial-gradient(circle at 30% 30%, #ffd86f, #fc6262)', tone: 'dark' },
+      { bg: 'radial-gradient(circle at 70% 20%, #89f7fe, #66a6ff)', tone: 'dark' },
+      { bg: 'repeating-linear-gradient(45deg, #ff6b6b 0 24px, #feca57 24px 48px)', tone: 'dark' },
+      { bg: 'linear-gradient(135deg, #232526 0%, #414345 100%)', tone: 'light' },
+      { bg: 'linear-gradient(135deg, #41295a 0%, #2f0743 100%)', tone: 'light' },
+      { bg: 'linear-gradient(135deg, #3e5151 0%, #decba4 100%)', tone: 'light' }
     ];
 
-    // 随机文案库
     const lines = [
       '点我一下试试', '你好呀 👋', '今天也要开心呀', '你笑起来真好看',
       '又是元气满满的一天', '随机掉落一份好运', '心想事成 ✨', '万事胜意',
@@ -172,78 +179,196 @@
       '嘿嘿嘿', '再来一下嘛', '上瘾了吧', '根本停不下来'
     ];
 
-    const sparkColors = ['#ffffff', '#ffe066', '#a0f0ff', '#ffb3c1', '#b8ffb0', '#e0c3fc'];
+    const coreValues = [
+      '富强', '民主', '文明', '和谐',
+      '自由', '平等', '公正', '法治',
+      '爱国', '敬业', '诚信', '友善'
+    ];
+
+    const sparkColors = [
+      '#ff4d6d', '#ffb703', '#ffd166', '#00b4d8',
+      '#06d6a0', '#b5179e', '#fb8500', '#4361ee',
+      '#ef476f', '#f9c74f', '#f72585', '#2ec4b6'
+    ];
+
+    // light = 深底用浅字；dark = 浅底用深字
+    const palettes = {
+      light: ['#ffffff', '#ffe066', '#a0f0ff', '#ffb3c1', '#b8ffb0',
+              '#e0c3fc', '#ffd6a5', '#caffbf', '#fdffb6', '#9bf6ff'],
+      dark:  ['#1a1a2e', '#2d3436', '#3d0c02', '#0b3d91', '#1b4332',
+                '#5a189a', '#7a2e0e', '#004e64', '#203239', '#4a1c40']
+    };
 
     function randomOf(arr) {
       return arr[Math.floor(Math.random() * arr.length)];
     }
 
+    function shuffle(arr) {
+      const a = arr.slice();
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      return a;
+    }
+
     function spawnSpark(x, y) {
-      for (let i = 0; i < 10; i++) {
-        const s = document.createElement('div');
-        s.className = 'spark';
-        s.style.left = x + 'px';
-        s.style.top = y + 'px';
-        s.style.background = randomOf(sparkColors);
-        const angle = (Math.PI * 2 * i) / 10 + Math.random() * 0.6;
-        const dist = 40 + Math.random() * 60;
-        const dx = Math.cos(angle) * dist;
-        const dy = Math.sin(angle) * dist;
-        s.style.setProperty('--dx', dx + 'px');
-        s.style.setProperty('--dy', dy + 'px');
-        document.body.appendChild(s);
-        // 自定义动画轨迹
-        s.animate(
-          [
-            { transform: 'translate(0,0) scale(1)', opacity: 1 },
-            { transform: `translate(${dx}px, ${dy}px) scale(0)`, opacity: 0 }
-          ],
-          { duration: 500 + Math.random() * 200, easing: 'ease-out' }
-        ).onfinish = () => s.remove();
+      try {
+        const words = shuffle(coreValues);
+        const total = words.length;
+
+        words.forEach(function (word, i) {
+          const el = document.createElement('div');
+          el.className = 'spark';
+          el.textContent = word;
+          el.style.left = x + 'px';
+          el.style.top = y + 'px';
+          el.style.color = randomOf(sparkColors);
+          el.style.fontSize = (12 + Math.random() * 8).toFixed(1) + 'px';
+          el.style.transform = 'translate(-50%, -50%)';
+          document.body.appendChild(el);
+
+          const angle = (Math.PI * 2 * i) / total + (Math.random() - 0.5) * 0.55;
+          const dist = 70 + Math.random() * 95;
+          const dx = Math.cos(angle) * dist;
+          const dy = Math.sin(angle) * dist - 32;
+          const rot = (Math.random() - 0.5) * 90;
+
+          const keyframes = [
+            { transform: 'translate(-50%, -50%) scale(0.4) rotate(0deg)', opacity: 0 },
+            {
+              transform: 'translate(-50%, -50%) translate(' + (dx * 0.42).toFixed(1) + 'px, ' + (dy * 0.42).toFixed(1) + 'px) scale(1.12) rotate(' + (rot * 0.45).toFixed(1) + 'deg)',
+              opacity: 1, offset: 0.28
+            },
+            {
+              transform: 'translate(-50%, -50%) translate(' + dx.toFixed(1) + 'px, ' + (dy - 26).toFixed(1) + 'px) scale(0.85) rotate(' + rot.toFixed(1) + 'deg)',
+              opacity: 0
+            }
+          ];
+
+          try {
+            el.animate(keyframes, {
+              duration: 900 + Math.random() * 400,
+              easing: 'cubic-bezier(.16,.84,.32,1)',
+              fill: 'forwards'
+            });
+          } catch (animErr) {
+            el.style.transition = 'opacity .8s ease';
+            el.style.opacity = '0';
+          }
+
+          setTimeout(function () { el.remove(); }, 1600);
+        });
+      } catch (err) {
+        console.error('spawnSpark error:', err);
       }
     }
 
     function pickLine() {
-      // 避免和上一条重复
+      if (!textEl) return randomOf(lines);
       let line = randomOf(lines);
       let guard = 0;
-      while (line === textEl.textContent && guard++ < 5) {
+      while (line === textEl.textContent && guard++ < 8) {
         line = randomOf(lines);
       }
       return line;
     }
 
-    function trigger() {
-      clicks += 1;
-      counterEl.textContent = '点击 ' + clicks + ' 次';
-
-      // 随机背景（避免连续相同）
-      let bg = randomOf(backgrounds);
+    function pickColor(tone) {
+      const pool = palettes[tone] || palettes.light;
+      let c = randomOf(pool);
       let guard = 0;
-      while (bg === document.body.style.background && guard++ < 5) {
-        bg = randomOf(backgrounds);
+      while (c === lastColor && guard++ < 8) {
+        c = randomOf(pool);
       }
-      document.body.style.background = bg;
-
-      // 随机文字 + 重新播放动画
-      textEl.classList.remove('show');
-      void textEl.offsetWidth; // 强制回流以重启动画
-      textEl.textContent = pickLine();
-      textEl.classList.add('show');
+      lastColor = c;
+      return c;
     }
 
-    document.body.addEventListener('click', function (e) {
-      spawnSpark(e.clientX, e.clientY);
-      trigger();
-    });
+    // 关键修复：文字更新放在最前面，每一步独立 try-catch，
+    // 任何一步失败都不影响其它步骤，确保“背景变、文字也变”
+    function trigger() {
+      // 1) 计数器
+      if (counterEl) {
+        try { counterEl.textContent = '点击 ' + (++clicks) + ' 次'; } catch (e) {}
+      } else {
+        clicks++;
+      }
+
+      // 2) 先随机出背景主题（只决定配色 tone，不立即应用）
+      let idx = Math.floor(Math.random() * backgrounds.length);
+      let guard = 0;
+      while (idx === lastBgIndex && guard++ < 8) {
+        idx = Math.floor(Math.random() * backgrounds.length);
+      }
+      lastBgIndex = idx;
+      const theme = backgrounds[idx];
+      const isLightBg = theme.tone === 'light';
+
+      // 3) 【优先】更新文字内容 + 颜色
+      if (textEl) {
+        // 3a. 文字内容（先改内容，保证内容一定变）
+        try {
+          textEl.classList.remove('show');
+          void textEl.offsetWidth;              // 强制回流，重启过渡
+          textEl.textContent = pickLine();
+          textEl.classList.add('show');
+        } catch (e) {
+          console.warn('文字内容更新失败:', e);
+        }
+
+        // 3b. 文字颜色（独立 try-catch，内容失败也不影响颜色）
+        try {
+          textEl.style.color = pickColor(theme.tone);
+          textEl.style.textShadow = isLightBg
+            ? '0 2px 18px rgba(0,0,0,.28), 0 1px 4px rgba(0,0,0,.25)'
+            : '0 2px 16px rgba(255,255,255,.65), 0 1px 3px rgba(0,0,0,.18)';
+        } catch (e) {
+          console.warn('文字颜色更新失败:', e);
+        }
+      }
+
+      // 4) 更新背景（文字已更新完，这里失败也不影响文字）
+      try { document.body.style.background = theme.bg; } catch (e) {}
+
+      // 5) 更新辅助元素（hint / counter 颜色），空值保护
+      if (hintEl) {
+        try {
+          hintEl.style.color = isLightBg ? 'rgba(255,255,255,.85)' : 'rgba(35,35,50,.55)';
+          hintEl.style.textShadow = isLightBg
+            ? '0 1px 6px rgba(0,0,0,.3)'
+            : '0 1px 6px rgba(255,255,255,.7)';
+        } catch (e) {}
+      }
+      if (counterEl) {
+        try {
+          counterEl.style.color = isLightBg ? 'rgba(255,255,255,.9)' : 'rgba(35,35,50,.68)';
+        } catch (e) {}
+      }
+    }
+
+    // 移动端：touchstart 先放特效
+    let lastTouchAt = 0;
 
     document.body.addEventListener('touchstart', function (e) {
+      lastTouchAt = Date.now();
       const t = e.touches[0];
       if (t) spawnSpark(t.clientX, t.clientY);
     }, { passive: true });
 
+    // 点击：先更新文字和背景，再放特效
+    document.body.addEventListener('click', function (e) {
+      trigger();
+      if (Date.now() - lastTouchAt > 600) {
+        spawnSpark(e.clientX, e.clientY);
+      }
+    });
+
     // 初始显示
-    textEl.classList.add('show');
+    if (textEl) {
+      textEl.style.color = '#ffffff';
+      textEl.classList.add('show');
+    }
   })();
 </script>
 </body>
