@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>点击随机 · 背景与文字</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    height: 100%;
+    overflow: hidden;
+    font-family: "PingFang SC", "Microsoft YaHei", "Noto Sans SC", -apple-system, sans-serif;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.8s cubic-bezier(.4, 0, .2, 1);
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  }
+
+  .stage {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    text-align: center;
+  }
+
+  .text {
+    max-width: 90vw;
+    font-size: clamp(1.6rem, 6vw, 3.4rem);
+    font-weight: 700;
+    line-height: 1.4;
+    letter-spacing: 0.04em;
+    color: #fff;
+    text-shadow: 0 2px 18px rgba(0,0,0,.28), 0 1px 4px rgba(0,0,0,.25);
+    word-break: break-word;
+    opacity: 0;
+    transform: translateY(18px) scale(.92);
+    transition: opacity .45s ease, transform .45s cubic-bezier(.2,.9,.3,1.2);
+  }
+
+  .text.show {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+
+  .hint {
+    position: absolute;
+    bottom: clamp(20px, 4vh, 40px);
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: .9rem;
+    color: rgba(255,255,255,.85);
+    text-shadow: 0 1px 6px rgba(0,0,0,.3);
+    letter-spacing: .06em;
+    animation: breathe 2.4s ease-in-out infinite;
+    pointer-events: none;
+  }
+
+  .counter {
+    position: absolute;
+    top: clamp(16px, 3vh, 28px);
+    right: clamp(16px, 3vw, 32px);
+    font-size: .85rem;
+    color: rgba(255,255,255,.9);
+    text-shadow: 0 1px 6px rgba(0,0,0,.3);
+    background: rgba(0,0,0,.14);
+    padding: 6px 12px;
+    border-radius: 999px;
+    backdrop-filter: blur(4px);
+    pointer-events: none;
+  }
+
+  .spark {
+    position: fixed;
+    width: 8px;
+    height: 8px;
+    margin: -4px 0 0 -4px;
+    border-radius: 50%;
+    background: rgba(255,255,255,.9);
+    pointer-events: none;
+    animation: spark .55s ease-out forwards;
+  }
+
+  @keyframes spark {
+    from { opacity: .95; transform: scale(1); }
+    to   { opacity: 0; transform: scale(0); }
+  }
+
+  @keyframes breathe {
+    0%, 100% { opacity: .55; transform: translateX(-50%) scale(1); }
+    50%      { opacity: 1;   transform: translateX(-50%) scale(1.05); }
+  }
+</style>
+</head>
+<body>
+  <div class="stage">
+    <div class="counter" id="counter">点击 0 次</div>
+    <div class="text" id="text">点我一下试试</div>
+    <div class="hint">— 点击任意处 · 随机换背景 &amp; 文字 —</div>
+  </div>
+
+<script>
+  (function () {
+    const textEl = document.getElementById('text');
+    const counterEl = document.getElementById('counter');
+    let clicks = 0;
+
+    // 随机背景方案：渐变 + 纯色 + 柔和图案，配色都偏好看
+    const backgrounds = [
+      'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+      'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+      'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
+      'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
+      'linear-gradient(135deg, #30cfd0 0%, #330867 100%)',
+      'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)',
+      'linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)',
+      'linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)',
+      'linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%)',
+      'linear-gradient(135deg, #d4fc79 0%, #96e6a1 100%)',
+      'linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%)',
+      'linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%)',
+      'linear-gradient(135deg, #f6d365 0%, #fda085 100%)',
+      'linear-gradient(135deg, #5ee7df 0%, #b490ca 100%)',
+      'linear-gradient(135deg, #c471f5 0%, #fa71cd 100%)',
+      'linear-gradient(135deg, #0ba360 0%, #3cba92 100%)',
+      'linear-gradient(135deg, #2af598 0%, #009efd 100%)',
+      'linear-gradient(135deg, #fc6076 0%, #ff9a44 100%)',
+      'linear-gradient(135deg, #7f00ff 0%, #e100ff 100%)',
+      '#1d1d2b',
+      '#141e30',
+      '#0f2027',
+      '#2b2b2b',
+      'radial-gradient(circle at 30% 30%, #ffd86f, #fc6262)',
+      'radial-gradient(circle at 70% 20%, #89f7fe, #66a6ff)',
+      'repeating-linear-gradient(45deg, #ff6b6b 0 24px, #feca57 24px 48px)',
+      'linear-gradient(135deg, #232526 0%, #414345 100%)',
+      'linear-gradient(135deg, #41295a 0%, #2f0743 100%)',
+      'linear-gradient(135deg, #3e5151 0%, #decba4 100%)'
+    ];
+
+    // 随机文案库
+    const lines = [
+      '点我一下试试', '你好呀 👋', '今天也要开心呀', '你笑起来真好看',
+      '又是元气满满的一天', '随机掉落一份好运', '心想事成 ✨', '万事胜意',
+      '保持热爱', '奔赴山海', '你值得所有美好', '好运正在派送中',
+      '再点一下，惊喜加倍', '别停，继续点', '这颜色好看吗？', '换个心情吧',
+      '世界那么大，先去点一点', '今天吃什么？', '早点睡，别熬夜', '记得喝水',
+      '努力的人最可爱', '你超棒的', '慢慢来，比较快', '一切都是最好的安排',
+      '平安喜乐', '温柔且坚定', '所愿皆所得', '未来可期',
+      '随机到我了，开心', '又是被点的一天', '点我的人会有好事发生', '冲鸭 🦆',
+      '干饭不积极，思想有问题', '摸鱼一时爽，一直摸鱼一直爽', '发个呆吧', '深呼吸',
+      '去爱，去生活，去受伤', '你是限量版', '别慌，月亮也照常升起', '慢慢变好',
+      '今天的风很温柔', '偷偷许个愿', '好运连连', '暴富预警 💰',
+      '开心最重要', '把烦恼都点掉', '一键清空不开心', '点击收获快乐',
+      '生活明朗', '万物可爱', '心存美好', '静待花开',
+      '冲就完了', '干得漂亮', '继续前进', '别回头',
+      '做个温柔的人', '眼里有光', '心里有火', '兜里有糖',
+      '嘿嘿嘿', '再来一下嘛', '上瘾了吧', '根本停不下来'
+    ];
+
+    const sparkColors = ['#ffffff', '#ffe066', '#a0f0ff', '#ffb3c1', '#b8ffb0', '#e0c3fc'];
+
+    function randomOf(arr) {
+      return arr[Math.floor(Math.random() * arr.length)];
+    }
+
+    function spawnSpark(x, y) {
+      for (let i = 0; i < 10; i++) {
+        const s = document.createElement('div');
+        s.className = 'spark';
+        s.style.left = x + 'px';
+        s.style.top = y + 'px';
+        s.style.background = randomOf(sparkColors);
+        const angle = (Math.PI * 2 * i) / 10 + Math.random() * 0.6;
+        const dist = 40 + Math.random() * 60;
+        const dx = Math.cos(angle) * dist;
+        const dy = Math.sin(angle) * dist;
+        s.style.setProperty('--dx', dx + 'px');
+        s.style.setProperty('--dy', dy + 'px');
+        document.body.appendChild(s);
+        // 自定义动画轨迹
+        s.animate(
+          [
+            { transform: 'translate(0,0) scale(1)', opacity: 1 },
+            { transform: `translate(${dx}px, ${dy}px) scale(0)`, opacity: 0 }
+          ],
+          { duration: 500 + Math.random() * 200, easing: 'ease-out' }
+        ).onfinish = () => s.remove();
+      }
+    }
+
+    function pickLine() {
+      // 避免和上一条重复
+      let line = randomOf(lines);
+      let guard = 0;
+      while (line === textEl.textContent && guard++ < 5) {
+        line = randomOf(lines);
+      }
+      return line;
+    }
+
+    function trigger() {
+      clicks += 1;
+      counterEl.textContent = '点击 ' + clicks + ' 次';
+
+      // 随机背景（避免连续相同）
+      let bg = randomOf(backgrounds);
+      let guard = 0;
+      while (bg === document.body.style.background && guard++ < 5) {
+        bg = randomOf(backgrounds);
+      }
+      document.body.style.background = bg;
+
+      // 随机文字 + 重新播放动画
+      textEl.classList.remove('show');
+      void textEl.offsetWidth; // 强制回流以重启动画
+      textEl.textContent = pickLine();
+      textEl.classList.add('show');
+    }
+
+    document.body.addEventListener('click', function (e) {
+      spawnSpark(e.clientX, e.clientY);
+      trigger();
+    });
+
+    document.body.addEventListener('touchstart', function (e) {
+      const t = e.touches[0];
+      if (t) spawnSpark(t.clientX, t.clientY);
+    }, { passive: true });
+
+    // 初始显示
+    textEl.classList.add('show');
+  })();
+</script>
+</body>
+</html>
